@@ -16,12 +16,18 @@ class Settings:
     MAX_RESULTS: int = int(os.environ.get("MAX_RESULTS", "3"))
     CONFIDENCE_THRESHOLD: float = float(os.environ.get("CONFIDENCE_THRESHOLD", "1.2"))
 
+    CHUNK_SIZE: int = int(os.environ.get("CHUNK_SIZE", "800"))
+    CHUNK_OVERLAP: int = int(os.environ.get("CHUNK_OVERLAP", "100"))
+
     # Application settings
     DEBUG: bool = os.environ.get("DEBUG", "false").lower() == "true"
     DOCS_DIRECTORY: str = os.environ.get("DOCS_DIRECTORY", "./docs")
 
     # Optional cloud API key (for OpenAI fallback)
     OPENAI_API_KEY: str = os.environ.get("OPENAI_API_KEY", "")
+
+    INGEST_ON_STARTUP: bool = os.environ.get("INGEST_ON_STARTUP", "true").lower() == "true"
+
 
 settings = Settings()
 

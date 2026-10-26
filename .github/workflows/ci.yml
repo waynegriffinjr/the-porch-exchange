@@ -32,6 +32,8 @@ jobs:
       - name: Run tests
         run: python -m pytest tests/ -v --tb=short
         env:
+          SECRET_KEY: ci-test-secret-key
+          INGEST_ON_STARTUP: "false"
           OLLAMA_URL: http://localhost:11434  # Won't actually connect in CI
           CHROMA_PATH: ./test_chroma
 
@@ -68,4 +70,5 @@ jobs:
       - name: Check code formatting
         run: |
           pip install ruff
-          ruff check backend/ frontend/
+          ruff check backend/app backend/tests frontend/
+          ruff format --check backend/app backend/tests frontend/

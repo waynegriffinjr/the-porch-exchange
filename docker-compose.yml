@@ -4,10 +4,13 @@ services:
     ports:
       - "8000:8000"
     env_file: .env
+    environment:
+      - DATABASE_URL=sqlite:////app/data/taskmanager.db
     depends_on:
       - ollama
     volumes:
       - chroma_data:/app/chroma_data
+      - app_data:/app/data
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
       interval: 30s
@@ -30,6 +33,17 @@ services:
     volumes:
       - ollama_data:/root/.ollama
 
+  ollama-pull:
+    image: ollama/ollama
+    depends_on:
+      - ollama
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    env_file: .env
+    entrypoint: ["/bin/sh", "-c", "until ollama list >/dev/null 2>&1; do sleep 2; done; ollama pull ${MODEL_NAME:-llama3.2:1b}"]
+    restart: "no"
+
 volumes:
   chroma_data:
+  app_data:
   ollama_data:

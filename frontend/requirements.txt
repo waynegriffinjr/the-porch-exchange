@@ -1,2 +1,5 @@
-streamlit
-requests==2.31.0
+streamlit>=1.39
+requests>=2.31
+pandas>=2.0
+groq>=0.11
+pyarrow<18

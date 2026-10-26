@@ -4,3 +4,11 @@ venv/
 __pycache__/
 *.pyc
 chroma_data/
+*.db
+*.db-journal
+*.log
+test_chroma/
+.pytest_cache/
+.ruff_cache/
+.DS_Store
+.streamlit/secrets.toml

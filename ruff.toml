@@ -1,0 +1,11 @@
+line-length = 120
+target-version = "py311"
+
+[lint]
+select = ["E", "F", "I", "B", "UP"]
+# FastAPI's Depends() in argument defaults is the documented idiom.
+ignore = ["B008", "E501"]
+
+[lint.per-file-ignores]
+"backend/app/main.py" = ["E402"]  # logging is configured before app imports
+"backend/tests/*" = ["E402"]       # env vars must be set before importing the app

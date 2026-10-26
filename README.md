@@ -1,41 +1,89 @@
-# compose-demo
+# Needs Manager Dashboard
 
-A minimal RAG (Retrieval-Augmented Generation) starter deployed with Docker Compose. A FastAPI backend stores documents in ChromaDB and answers questions through a local Ollama LLM server, with a Streamlit chat UI, all running in containers.
+A full-stack needs/task manager with a built-in community document assistant. The **Needs Manager Dashboard** (FastAPI backend + Streamlit app: JWT login, task management, analytics, Groq AI assistant) is the primary application. The Containerized RAG features (ChromaDB + Ollama question answering over the Blanchester community documents) are integrated into it, so one backend and one frontend serve everything.
 
 ## Architecture
 
-| Service   | Image / Build      | Port  | Purpose                                              |
-|-----------|--------------------|-------|------------------------------------------------------|
-| `backend` | built from `./backend` | 8000 | FastAPI app + ChromaDB (persistent vector store)  |
-| `frontend`| built from `./frontend` | 8501 | Streamlit chat UI (talks to `backend`)           |
-| `ollama`  | `ollama/ollama`    | 11434 | Local LLM server                                     |
+| Service   | Image / Build           | Port  | Purpose                                                        |
+|-----------|-------------------------|-------|----------------------------------------------------------------|
+| `backend` | built from `./backend`  | 8000  | FastAPI: auth, tasks (SQLite), document RAG (ChromaDB)         |
+| `frontend`| built from `./frontend` | 8501  | Streamlit dashboard (talks to `backend`)                       |
+| `ollama`  | `ollama/ollama`         | 11434 | Local LLM server used by the document assistant                |
 
-Volumes:
-- `chroma_data` → `/app/chroma_data` (vector DB persists across restarts)
-- `ollama_data` → `/root/.ollama` (downloaded models persist)
+Volumes: `app_data` (SQLite users/tasks), `chroma_data` (vector DB), `ollama_data` (models).
 
-The backend reaches Ollama at `http://ollama:11434` via Compose's internal network.
+```
+ Streamlit dashboard (:8501) --HTTP--> FastAPI backend (:8000) --HTTP--> Ollama (:11434)
+                                         |  SQLite (users, tasks)
+                                         |  ChromaDB <- backend/docs/*.txt|*.md
+```
+
+Dashboard tabs: **Overview** (metrics, table, chart, Groq key link), **Needs** (with a "Need Met" checkbox), **Add New Need**, **Skills I Can Offer**, **AI Assistant** (Groq, optional key in sidebar), **Community Documents** (RAG chat with sources and confidence, re-index button). The sidebar shows API/Ollama status and the number of indexed chunks.
+
+RAG pipeline: `/ingest` chunks each document (`CHUNK_SIZE`, `CHUNK_OVERLAP`) into ChromaDB; `/ask` retrieves the closest chunks, drops those beyond `CONFIDENCE_THRESHOLD`, and asks Ollama. **Guardrail:** with no sufficiently close chunk the LLM is not called and the answer is "I don't know" (`confidence: "none"`).
 
 ## Project structure
 
 ```
-COMPOSE-DEMO/
+.
 ├── docker-compose.yml
-├── .env                   # real local settings (git/docker-ignored)
-├── .env.example           # committed template
-├── README.md
+├── .env.example               # committed template (copy to .env)
+├── requirements.txt           # local dev: backend + frontend + test tools
+├── ruff.toml                  # lint/format config
+├── docs/architecture.png
+├── .github/workflows/ci.yml
 ├── frontend/
 │   ├── Dockerfile
-│   ├── app.py             # Streamlit chat UI
+│   ├── app.py                 # Streamlit dashboard + AI + document chat
+│   ├── BlanchesterOH2.JPG     # faded page background
+│   ├── api_client.py          # calls to the backend API
 │   └── requirements.txt
 └── backend/
     ├── Dockerfile
-    ├── config.py          # centralized Settings
-    ├── main.py            # FastAPI app
     ├── requirements.txt
-    └── docs/              # .txt files ingested at startup
-        └── sample.txt
+    ├── app/
+    │   ├── main.py            # FastAPI app, startup ingestion
+    │   ├── config.py          # RAG settings (env vars)
+    │   ├── rag.py             # chunking, ingestion, retrieval, generation
+    │   ├── auth.py, database.py, exceptions.py
+    │   ├── models/, schemas/  # users and tasks
+    │   └── routers/           # auth.py, tasks.py, rag.py
+    ├── tests/                 # auth, tasks/users, RAG (29 tests)
+    └── docs/                  # .txt / .md corpus (see Adding documents)
 ```
+
+```mermaid
+flowchart LR
+    U[User] --> F[Streamlit frontend :8501]
+    F -->|REST + JWT| B[FastAPI backend :8000]
+    B --> D[(SQLite: users, needs, skills)]
+    B --> C[(ChromaDB: document chunks)]
+    B -->|prompt + retrieved chunks| O[Ollama :11434]
+    F -.->|optional| G[Groq API]
+    DOCS[backend/docs/*.md, *.txt] -->|chunk + embed at startup| C
+```
+
+![Architecture diagram](docs/architecture.png)
+
+## Tech stack
+
+FastAPI, Pydantic v2, SQLAlchemy 2 (SQLite), JWT (python-jose, passlib/bcrypt), ChromaDB, Ollama (`llama3.2:1b`), Streamlit, pytest + TestClient, ruff, Docker Compose, GitHub Actions CI.
+
+## Usage guide
+
+1. Open http://localhost:8501 and register / sign in.
+2. **Add New Need**, then manage it on the **Needs** tab (mark as met, edit, delete). **Overview** shows metrics and charts.
+3. **Skills I Can Offer**: add the skills you can contribute.
+4. **Community Documents**: ask e.g. "Where can I get food help in Blanchester?". The answer cites its source files and shows a confidence level; off-topic questions return "I don't know based on the provided documents."
+
+## 5-minute demo script
+
+| Time | Show |
+|------|------|
+| 0:00-2:00 | Log in, ask a question, expand the sources, create/mark/delete a need |
+| 2:00-3:00 | Diagram above; `docker-compose up` starts frontend, backend, Ollama; backend talks to SQLite + ChromaDB |
+| 3:00-4:00 | Challenge: pinned `chromadb==0.4.22` + `numpy<2` and tuning `CONFIDENCE_THRESHOLD` so irrelevant questions get "I don't know" |
+| 4:00-5:00 | Next: document upload endpoint, Alembic migrations, per-user document access, RAG evaluation set |
 
 ## Prerequisites
 
@@ -45,14 +93,15 @@ COMPOSE-DEMO/
 ## Quick start
 
 ```bash
-# 0. Create your local config (first time only)
+# 0. Create your local config (first time only) and set SECRET_KEY in .env
 cp .env.example .env
 
 # 1. Build and start everything
 docker-compose up --build
 
-# 2. In another terminal, pull the model (first time only)
-docker-compose exec ollama ollama pull llama3.2:1b
+# 2. The `ollama-pull` service downloads the model automatically on first run
+#    (~1.3 GB; the Community Documents tab works once it finishes).
+#    To pull manually: docker-compose exec ollama ollama pull llama3.2:1b
 
 # 3. Verify
 curl http://localhost:8000/health
@@ -61,16 +110,18 @@ curl http://localhost:8000/health
 Expected response:
 
 ```json
-{"status":"healthy","ollama":"connected","ollama_url":"http://ollama:11434","documents":1}
+{"status":"healthy","ollama":"connected","ollama_url":"http://ollama:11434","documents":164}
 ```
 
-Chat UI: http://localhost:8501 (the model must be pulled first, see step 2)
+Dashboard: http://localhost:8501 (the model must be pulled first for the Community Documents tab)
+
+Create a user (once) at http://localhost:8000/docs via `POST /auth/register`, e.g. `{"username": "admin", "email": "admin@example.com", "password": "password123"}` (local demo only), then sign in on the dashboard.
 
 Interactive API docs: http://localhost:8000/docs
 
 ## Configuration
 
-All settings are centralized in `backend/config.py` (a `Settings` class) and read from environment variables. Docker Compose loads them into the `backend` container from `.env` via `env_file: .env`.
+RAG settings are centralized in `backend/app/config.py` (a `Settings` class) and read from environment variables. Docker Compose loads them into the `backend` container from `.env` via `env_file: .env`.
 
 Setup:
 
@@ -83,14 +134,19 @@ cp .env.example .env    # then edit .env with your own values
 
 | Variable               | Default (in `config.py`) | Description                                   |
 |------------------------|--------------------------|-----------------------------------------------|
+| `SECRET_KEY`           | *(required)*             | Signs login JWTs; backend refuses to start without it |
+| `DATABASE_URL`         | `sqlite:///./taskmanager.db` | Users/tasks database (set to a volume path in Compose) |
+| `INGEST_ON_STARTUP`    | `true`                   | Index `DOCS_DIRECTORY` when the backend starts |
 | `OLLAMA_URL`           | `http://localhost:11434` | Ollama server URL (`http://ollama:11434` in Compose) |
 | `MODEL_NAME`           | `llama3.2:1b`            | Ollama model name                             |
 | `CHROMA_PATH`          | `./chroma_data`          | ChromaDB persistence directory                |
 | `COLLECTION_NAME`      | `documents`              | ChromaDB collection name                      |
 | `MAX_RESULTS`          | `3`                      | Number of documents to retrieve               |
 | `CONFIDENCE_THRESHOLD` | `1.2`                    | Retrieval distance threshold                  |
+| `CHUNK_SIZE`           | `800`                    | Max characters per chunk                      |
+| `CHUNK_OVERLAP`        | `100`                    | Overlap when splitting very long paragraphs   |
 | `DEBUG`                | `false`                  | Print the loaded config at startup when `true` |
-| `DOCS_DIRECTORY`       | `./docs`                 | Directory of `.txt` files to ingest           |
+| `DOCS_DIRECTORY`       | `./docs`                 | Directory of `.txt`/`.md` files to ingest           |
 | `OPENAI_API_KEY`       | *(empty)*                | Optional cloud fallback key (keep in `.env` only) |
 
 To change a value, edit `.env` and recreate the container (a plain restart does not reload `.env`):
@@ -104,20 +160,46 @@ If you change `MODEL_NAME`, pull the model too: `docker compose exec ollama olla
 
 ## API endpoints
 
-| Method | Path       | Description                                                        |
-|--------|------------|--------------------------------------------------------------------|
-| GET    | `/`        | Basic status message and configured model                          |
-| GET    | `/health`  | Backend status, Ollama connectivity, and document count            |
-| POST   | `/ask`     | Body `{"question": "..."}`. Retrieves matching chunks from ChromaDB, asks Ollama, returns `answer`, `sources`, `confidence` |
-| POST   | `/ingest`  | Re-load all `backend/docs/*.txt` files into ChromaDB (upsert)      |
+Interactive docs: http://localhost:8000/docs. 🔒 = requires `Authorization: Bearer <token>` from `/auth/login`.
+
+| Method | Path                   | Description                                                        |
+|--------|------------------------|--------------------------------------------------------------------|
+| GET    | `/`                    | Basic status message and configured model                          |
+| GET    | `/health`              | Backend status, Ollama connectivity, and chunk count               |
+| POST   | `/auth/register`       | Create a user, returns a token                                     |
+| POST   | `/auth/login`          | Form login (`username`, `password`), returns a token               |
+| GET    | `/users/me` 🔒         | Current user                                                       |
+| GET/POST/DELETE | `/skills/` 🔒 | List / add / remove the skills you can offer |
+| GET/POST | `/tasks/` 🔒         | List (filters: `completed`, `priority`, `skip`, `limit`) / create tasks |
+| GET/PATCH/DELETE | `/tasks/{id}` 🔒 | Read / update / delete your task                              |
+| POST   | `/tasks/{id}/suggest` 🔒 | Suggested action for a task                                      |
+| GET    | `/stats` 🔒            | `{"document_count": N}` (indexed chunks)                           |
+| POST   | `/ask` 🔒              | Body `{"question": "..."}`; returns `answer`, `sources`, `confidence` |
+| POST   | `/ask/stream` 🔒       | Same body as `/ask`; streams NDJSON events: `meta` (sources, confidence) then `token`s |
+| POST   | `/ingest` 🔒           | Re-chunk and re-load all `backend/docs/*.txt|*.md` files           |
 
 ## Adding documents
 
-1. Drop `.txt` files into `backend/docs/`.
+1. Drop `.txt` or `.md` files into `backend/docs/`.
 2. Rebuild so they are copied into the image: `docker-compose up --build -d`.
-3. Documents are ingested automatically at startup (or call `POST /ingest`). Ingestion uses upsert keyed by filename, so re-running does not create duplicates.
+3. Documents are ingested automatically at startup (or call `POST /ingest`). Chunks are keyed by `filename::chunk_index` and a file's old chunks are replaced, so re-running does not create duplicates. `documents` counts chunks, not files.
 
 Check the count with `curl http://localhost:8000/health`.
+
+## Tests
+
+```bash
+# locally (Python 3.11+)
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+cd backend && python -m pytest tests -q
+
+# lint and format (also run in CI)
+ruff check backend/app backend/tests frontend && ruff format --check backend/app backend/tests frontend
+
+# or inside the container
+docker compose exec backend sh -c "pip install pytest 'httpx<0.28' && python -m pytest tests -q"
+```
 
 ## Common commands
 
@@ -134,17 +216,19 @@ docker-compose build --no-cache backend   # force a clean backend rebuild
 
 - **`failed to connect to the docker API ... docker.sock`** – Docker isn't running. Start Docker Desktop (`open -a Docker`) and wait until it's ready (`docker info`).
 - **`np.float_ was removed in the NumPy 2.0 release`** – `chromadb==0.4.22` needs `numpy<2`. This is pinned in `requirements.txt`; rebuild with `--no-cache` if you see a stale image.
-- **`get_or_create_collection() got an unexpected keyword argument 'configuration'`** – that argument exists only in newer ChromaDB. With 0.4.x use `metadata={"hnsw:space": "cosine"}` (as `main.py` does).
+- **`get_or_create_collection() got an unexpected keyword argument 'configuration'`** – that argument exists only in newer ChromaDB. With 0.4.x use `metadata={"hnsw:space": "cosine"}` (as `routers/rag.py` does).
 - **`ERR_CONNECTION_REFUSED` on localhost:8000** – the backend crashed or isn't up. Check `docker-compose logs backend`.
-- **`documents: 0` in `/health`** – ensure `.txt` files exist in `backend/docs/`, rebuild, or call `POST /ingest`.
+- **`documents: 0` in `/health`** – ensure `.txt`/`.md` files exist in `backend/docs/`, rebuild, or call `POST /ingest`.
 - **`ollama: unavailable`** – confirm the `ollama` container is running and the model is pulled.
+- **Backend exits with `SECRET_KEY is not configured`** – set `SECRET_KEY` in `.env`.
 - **`POST /ask` returns 404** – you are running an old backend image; rebuild with `docker-compose up -d --build`.
 - **`/ask` returns 502 "Ollama error"** – the model isn't pulled or Ollama is down: `docker-compose exec ollama ollama pull llama3.2:1b`.
-- **Answer is "I don't know"** – no document matched closely enough (see `CONFIDENCE_THRESHOLD`); add relevant `.txt` files to `backend/docs/`.
+- **Answer is "I don't know"** – no document matched closely enough (see `CONFIDENCE_THRESHOLD`); add relevant files to `backend/docs/`.
 - **"Failed to send telemetry event"** – harmless log noise from the pinned ChromaDB version.
 
 ## Notes
 
 - The first backend start downloads Chroma's default embedding model (~79 MB) into the container; it is re-downloaded if the container is recreated.
-- CORS is open (`*`) for demo purposes; restrict it for production.
-- `/ask` is non-streaming; the first answer can be slow while Ollama loads the model.
+- CORS only allows the Streamlit origin (`http://localhost:8501`); adjust in `backend/app/main.py` for other deployments.
+- Document endpoints require login; `/health` and `/` stay public.
+- The dashboard uses `/ask/stream`, so answers appear token by token; the first answer can still start slowly while Ollama loads the model.
