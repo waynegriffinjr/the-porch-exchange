@@ -23,7 +23,7 @@ As a neighbor, I want to share my skills so that I can meet others needs and hav
 
 ## SQLAlchemy database with at least 2 related tables
 - **users** table: `id`, `username`, `email`, `hashed_password`
-- **tasks** table: `id`, `title`, `description`, `priority`, `completed`, `created_at`, `updated_at`, `owner_id`
+- **needs** table: `id`, `title`, `description`, `priority`, `completed`, `created_at`, `updated_at`, `owner_id`
 - Relationship: one-to-many (one user owns many needs via foreign key `owner_id`)
 
 ## Pydantic validation on all endpoints
@@ -86,7 +86,7 @@ Switch to the Resource RAG tab
 Ask questions about Blanchester community resources, skills, town services, or how-tos
 The backend retrieves relevant documents from ChromaDB and generates an answer with Ollama
 
-View metrics
+### View metrics
 Open the Metrics tab to see counts of open vs completed tasks, priority breakdowns, etc.
 
 ## requirements.txt (or per-service requirements files)
