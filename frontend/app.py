@@ -74,8 +74,8 @@ if st.session_state["token"] is None:
         <style>
         .porch-title{font-family:'Bell MT','Bell MT Std',Baskerville,'Palatino Linotype',Georgia,serif;
             color:#000080;text-align:center;font-size:2.8rem;font-weight:600;margin:1rem 0 1.5rem;}
-        [data-testid="stForm"]{background-color:#89CFF0;border:2px solid #000080;border-radius:10px;}
-        [data-testid="stForm"] input{background-color:#E3F2FD;}
+        [data-testid="stForm"]{background-color:rgba(137,207,240,.45);border:2px solid #000080;border-radius:10px;}
+        [data-testid="stForm"] input{background-color:rgba(227,242,253,.75);}
         </style>
         <div class="porch-title">The Blanchester Porch Exchange</div>
         """,
@@ -299,9 +299,9 @@ else:
                         except Exception as error:
                             st.error(f"An error occurred while adding the need: {error}")
 
-        def render_board_need(item):
+        def render_board_need(item, key_prefix):
             """Show one public need with its poster, contact and matched skills."""
-            with st.container(border=True):
+            with st.container(border=True, key=f"board_card_{item['id']}_{key_prefix}"):
                 st.markdown(f"**{item['title']}**  ·  priority: {item['priority']}")
                 if item.get("description"):
                     st.write(item["description"])
@@ -312,6 +312,16 @@ else:
                 if item.get("matched_skills"):
                     st.success("Matches your skills: " + ", ".join(item["matched_skills"]))
 
+        st.markdown(
+            """
+            <style>
+            [class*="st-key-board_card_"]{background:rgba(137,207,240,.45);
+                border:2px solid #000080;border-radius:10px;}
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
+
         with board_tab:
             st.subheader("Public Needs Board")
             st.caption("Open needs that neighbors have chosen to share. Reach out if you can help.")
@@ -319,7 +329,7 @@ else:
             board = get_board(token, search)
             if isinstance(board, list) and board:
                 for item in board:
-                    render_board_need(item)
+                    render_board_need(item, "board")
             else:
                 st.info("No public needs match right now.")
 
@@ -329,7 +339,7 @@ else:
             my_matches = get_my_matches(token)
             if isinstance(my_matches, list) and my_matches:
                 for item in my_matches:
-                    render_board_need(item)
+                    render_board_need(item, "matches")
             else:
                 st.info("No matches yet. Add skills on the Skills tab to see needs you could help meet.")
 
