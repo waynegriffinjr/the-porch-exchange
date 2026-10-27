@@ -20,7 +20,7 @@ Volumes: `app_data` (SQLite users/needs), `chroma_data` (vector DB), `ollama_dat
 
 After login a welcome page states the site's purpose, with a **Continue to Dashboard** button.
 
-Matching and the public board: a need can be shared on the board (`is_public`, with optional `contact` text). Matching is keyword-based (`backend/app/matching.py`): need title/description words are compared with skill names (weighted double) and details, ignoring stopwords and simple plurals. Emails are never exposed; only the username and the contact text the poster chose to share.
+Matching and the public board: a need can be shared on the board (`is_public`, with optional `contact` text). Matching is concept-based (`backend/app/matching.py`): words are stemmed and mapped to synonym groups ("ride" = "driving", "mow" = "lawn"), and generic words like "repair" or "help" never count alone. A skill matches when most concepts in its *name* appear in the need (4 points each), or when at least two concepts/words from its details do. A single stray word in a skill's details (e.g. "church") is never enough. Emails are never exposed; only the username and the contact text the poster chose to share.
 
 Dashboard tabs: **Needs Board**, **My Matches**, **Overview** (metrics, table, chart, Groq key link), **Needs** (with a "Need Met" checkbox), **Add New Need**, **Skills I Can Offer**, **AI Assistant** (Groq, optional key in sidebar), **Community Documents** (RAG chat with sources and confidence, re-index button). The sidebar shows API/Ollama status and the number of indexed chunks.
 
@@ -52,7 +52,7 @@ RAG pipeline: `/ingest` chunks each document (`CHUNK_SIZE`, `CHUNK_OVERLAP`) int
     │   ├── auth.py, database.py, exceptions.py
     │   ├── models/, schemas/  # users and needs
     │   └── routers/           # auth.py, needs.py, rag.py
-    ├── tests/                 # auth, needs/users, RAG (37 tests)
+    ├── tests/                 # auth, needs/users, RAG (54 tests)
     └── docs/                  # .txt / .md corpus (see Adding documents)
 ```
 
