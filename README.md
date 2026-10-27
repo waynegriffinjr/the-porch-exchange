@@ -52,7 +52,7 @@ RAG pipeline: `/ingest` chunks each document (`CHUNK_SIZE`, `CHUNK_OVERLAP`) int
     │   ├── auth.py, database.py, exceptions.py
     │   ├── models/, schemas/  # users and needs
     │   └── routers/           # auth.py, needs.py, rag.py
-    ├── tests/                 # auth, needs/users, RAG (35 tests)
+    ├── tests/                 # auth, needs/users, RAG (37 tests)
     └── docs/                  # .txt / .md corpus (see Adding documents)
 ```
 
@@ -139,6 +139,7 @@ cp .env.example .env    # then edit .env with your own values
 | Variable               | Default (in `config.py`) | Description                                   |
 |------------------------|--------------------------|-----------------------------------------------|
 | `SECRET_KEY`           | *(required)*             | Signs login JWTs; backend refuses to start without it |
+| `SEED_DEMO_DATA`       | `true` | Load the demo neighbors at startup |
 | `DATABASE_URL`         | `sqlite:///./needs.db` | Users/needs database (set to a volume path in Compose) |
 | `INGEST_ON_STARTUP`    | `true`                   | Index `DOCS_DIRECTORY` when the backend starts |
 | `OLLAMA_URL`           | `http://localhost:11434` | Ollama server URL (`http://ollama:11434` in Compose) |
@@ -184,6 +185,28 @@ Interactive docs: http://localhost:8000/docs. 🔒 = requires `Authorization: Be
 | POST   | `/ask` 🔒              | Body `{"question": "..."}`; returns `answer`, `sources`, `confidence` |
 | POST   | `/ask/stream` 🔒       | Same body as `/ask`; streams NDJSON events: `meta` (sources, confidence) then `token`s |
 | POST   | `/ingest` 🔒           | Re-chunk and re-load all `backend/docs/*.txt|*.md` files           |
+
+## Demo data
+
+On startup the backend creates 15 demo neighbors (skipping any that already exist), each with 5 skills and 2 public needs, so the Needs Board and matching are populated for every demo. **All demo accounts use the password `1234567`.** Log in with any username below. Set `SEED_DEMO_DATA=false` in `.env` to disable (do this in production).
+
+| Username | Skills | Needs (public) |
+|----------|--------|----------------|
+| `margaret_hayes` | Baking, Gardening, Canning, Knitting, Pet sitting | Ride to doctor appointments / Help moving a dresser |
+| `tom_becker` | Lawn mowing, Carpentry, Driving, Snow removal, Moving help | Tax preparation help / Bread and homemade meals |
+| `linda_ortiz` | Tax preparation, Bookkeeping, Spanish tutoring, Resume writing, Notary | Lawn mowing / Computer repair |
+| `james_whitfield` | Computer repair, Tech tutoring, Wi-Fi setup, Photography, Tax preparation | Garden help / Ride to the airport |
+| `patricia_nguyen` | Child care, Tutoring, Cooking, Sewing, Translation | Snow shoveling / Bicycle repair |
+| `robert_clark` | Plumbing, Electrical repair, Painting, Bicycle repair, Tool lending | Pet sitting / Resume writing help |
+| `susan_miller` | Nursing care, Elder companionship, Grocery shopping, Meal delivery, Driving | Plumbing repair / Painting a bedroom |
+| `david_kim` | Auto repair, Welding, Small engine repair, Firewood splitting, Hauling | Babysitting / Spanish tutoring |
+| `karen_johnson` | Hair cutting, Gardening, Quilting, Event planning, Baking | Tech tutoring for my phone / Auto repair |
+| `michael_adams` | Legal paperwork help, Notary, Bookkeeping, Driving, Moving help | Firewood / Haircut at home |
+| `angela_brooks` | Mental health listening, Tutoring, Resume writing, Yoga instruction, Child care | Electrical repair / Moving help |
+| `frank_dawson` | Home repair, Painting, Snow removal, Gardening, Tool lending | Meal delivery / Photography for a reunion |
+| `helen_park` | Cooking, Translation, Pet sitting, Knitting, Child care | Computer help / Firewood splitting |
+| `carlos_rivera` | Landscaping, Concrete work, Spanish tutoring, Moving help, Hauling | Tax preparation / Bookkeeping help |
+| `betty_wallace` | Sewing, Quilting, Canning, Elder companionship, Cooking | Painting my porch / Ride to church |
 
 ## Adding documents
 

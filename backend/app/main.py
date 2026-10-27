@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse
 
 from app import rag
 from app.config import settings
-from app.database import Base, add_board_columns, engine, rename_legacy_tasks_table
+from app.database import Base, SessionLocal, add_board_columns, engine, rename_legacy_tasks_table
 
 log_dir = Path(__file__).resolve().parent.parent
 log_file = log_dir / "need_activity.log"
@@ -28,6 +28,7 @@ from app.exceptions import APIException
 from app.models import skill as _skill_model  # noqa: F401  (registers table)
 from app.routers import auth, board, needs, skills
 from app.routers import rag as rag_router
+from app.seed import seed_demo_data
 
 tags_metadata = [
     {
@@ -46,7 +47,10 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    """Index the community documents when the server starts."""
+    """Load demo neighbors and index the community documents when the server starts."""
+    if settings.SEED_DEMO_DATA:
+        with SessionLocal() as db:
+            seed_demo_data(db)
     if settings.INGEST_ON_STARTUP:
         try:
             rag.ingest_docs(rag_router.get_collection())

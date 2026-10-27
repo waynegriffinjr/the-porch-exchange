@@ -26,6 +26,7 @@ class Settings:
     # Optional cloud API key (for OpenAI fallback)
     OPENAI_API_KEY: str = os.environ.get("OPENAI_API_KEY", "")
 
+    SEED_DEMO_DATA: bool = os.environ.get("SEED_DEMO_DATA", "true").lower() == "true"
     INGEST_ON_STARTUP: bool = os.environ.get("INGEST_ON_STARTUP", "true").lower() == "true"
 
 

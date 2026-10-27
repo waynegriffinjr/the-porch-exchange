@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 # Must be set before the app is imported.
 os.environ.setdefault("SECRET_KEY", "test-secret-key")
 os.environ["INGEST_ON_STARTUP"] = "false"
+os.environ["SEED_DEMO_DATA"] = "false"
 
 from app.database import Base, get_db
 from app.main import app
