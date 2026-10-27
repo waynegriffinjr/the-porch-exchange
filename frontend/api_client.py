@@ -40,13 +40,18 @@ def get_needs(token: str):
         raise Exception("Unable to complete your request. Is the backend running?") from None
 
 
-def create_need(token: str, title: str, description: str = ""):
-    """Create a new need."""
+def create_need(token: str, title: str, description: str = "", is_public: bool = False, contact: str = ""):
+    """Create a new need, optionally shared on the public board."""
     try:
         response = requests.post(
             f"{API_URL}/needs/",
             headers={"Authorization": f"Bearer {token}"},
-            json={"title": title, "description": description},
+            json={
+                "title": title,
+                "description": description,
+                "is_public": is_public,
+                "contact": contact.strip() or None,
+            },
             timeout=10,
         )
         return response.ok
@@ -173,4 +178,49 @@ def delete_skill(token: str, skill_id: int):
         )
         return response.ok
     except requests.exceptions.ConnectionError:
+        raise Exception("Unable to connect to the server. Is the backend running?") from None
+
+
+def _get_json(token: str, path: str, params: dict | None = None):
+    """GET an authenticated JSON endpoint; returns 'unauthorized' on 401 and [] on other errors."""
+    try:
+        response = requests.get(
+            f"{API_URL}{path}", headers={"Authorization": f"Bearer {token}"}, params=params, timeout=10
+        )
+    except requests.exceptions.RequestException:
+        raise Exception("Unable to connect to the server. Is the backend running?") from None
+    if response.status_code == 401:
+        return "unauthorized"
+    return response.json() if response.ok else []
+
+
+def get_board(token: str, search: str = ""):
+    """Fetch open needs shared on the public board."""
+    return _get_json(token, "/board/", {"search": search} if search.strip() else None)
+
+
+def get_my_matches(token: str):
+    """Fetch public needs that fit the user's skills."""
+    return _get_json(token, "/board/matches")
+
+
+def get_need_matches(token: str, need_id: int):
+    """Fetch neighbors whose skills fit one of the user's needs."""
+    return _get_json(token, f"/needs/{need_id}/matches")
+
+
+def update_need_public(token: str, need_id: int, is_public: bool, contact: str | None = None):
+    """Share or unshare a need on the public board."""
+    payload = {"is_public": is_public}
+    if contact is not None:
+        payload["contact"] = contact.strip() or None
+    try:
+        response = requests.patch(
+            f"{API_URL}/needs/{need_id}",
+            headers={"Authorization": f"Bearer {token}"},
+            json=payload,
+            timeout=10,
+        )
+        return response.ok
+    except requests.exceptions.RequestException:
         raise Exception("Unable to connect to the server. Is the backend running?") from None

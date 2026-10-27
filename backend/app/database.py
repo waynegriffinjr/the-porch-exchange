@@ -47,6 +47,19 @@ def rename_legacy_tasks_table() -> None:
             conn.execute(text("ALTER TABLE tasks RENAME TO needs"))
 
 
+def add_board_columns() -> None:
+    """Add the public-board columns to a `needs` table created before the board existed."""
+    inspector = inspect(engine)
+    if "needs" not in inspector.get_table_names():
+        return
+    existing = {c["name"] for c in inspector.get_columns("needs")}
+    with engine.begin() as conn:
+        if "is_public" not in existing:
+            conn.execute(text("ALTER TABLE needs ADD COLUMN is_public BOOLEAN NOT NULL DEFAULT 0"))
+        if "contact" not in existing:
+            conn.execute(text("ALTER TABLE needs ADD COLUMN contact VARCHAR(200)"))
+
+
 def get_db() -> Generator[Session, None, None]:
     """Provides a DB session per request lifecycle."""
     db = SessionLocal()

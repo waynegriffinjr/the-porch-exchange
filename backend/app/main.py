@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse
 
 from app import rag
 from app.config import settings
-from app.database import Base, engine, rename_legacy_tasks_table
+from app.database import Base, add_board_columns, engine, rename_legacy_tasks_table
 
 log_dir = Path(__file__).resolve().parent.parent
 log_file = log_dir / "need_activity.log"
@@ -26,7 +26,7 @@ logging.basicConfig(
 
 from app.exceptions import APIException
 from app.models import skill as _skill_model  # noqa: F401  (registers table)
-from app.routers import auth, needs, skills
+from app.routers import auth, board, needs, skills
 from app.routers import rag as rag_router
 
 tags_metadata = [
@@ -38,6 +38,7 @@ tags_metadata = [
         "name": "Documents",
         "description": "Ask questions about indexed community documents (RAG). Requires authentication.",
     },
+    {"name": "board", "description": "Public needs board and skill matching. Requires authentication."},
     {"name": "Needs", "description": "CRUD operations for needs. Most endpoints require authentication."},
 ]
 
@@ -91,6 +92,7 @@ app.add_middleware(
 )
 
 rename_legacy_tasks_table()
+add_board_columns()
 Base.metadata.create_all(bind=engine)
 
 
@@ -98,6 +100,7 @@ app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(auth.users_router, prefix="/users", tags=["users"])
 
 app.include_router(needs.router, prefix="/needs", tags=["needs"])
+app.include_router(board.router, prefix="/board", tags=["board"])
 app.include_router(skills.router, prefix="/skills", tags=["skills"])
 app.include_router(rag_router.router, tags=["Documents"])
 

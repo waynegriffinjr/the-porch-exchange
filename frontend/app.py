@@ -11,12 +11,16 @@ from api_client import (
     create_need,
     create_skill,
     delete_skill,
+    get_board,
     get_health,
+    get_my_matches,
+    get_need_matches,
     get_needs,
     get_skills,
     login,
     reindex_documents,
     update_need_met,
+    update_need_public,
 )
 
 # Streamlit frontend for the needs app
@@ -24,6 +28,18 @@ st.set_page_config(
     page_title="Needs Manager Dashboard",
     page_icon="🔐",
     layout="wide",
+)
+
+
+MISSION_STATEMENT = (
+    "The Blanchester Porch Exchange exists to strengthen the bonds among neighbors by fostering a "
+    "community in which residents help one another meet their needs through the respectful exchange of "
+    "skills and resources. We believe that every member of our community possesses something of value "
+    "to share, whether it is time, expertise, a helping hand, or material goods, and that every member, "
+    "at some point, will benefit from the generosity of others. By providing a trusted and transparent "
+    "place to post needs, offer skills, and discover where the two meet, this platform seeks to cultivate "
+    "mutual support, reduce isolation, and build a more resilient, compassionate, and self-reliant "
+    "Blanchester."
 )
 
 
@@ -77,6 +93,7 @@ if st.session_state["token"] is None:
                 if token:
                     st.session_state["token"] = token
                     st.session_state["username"] = username
+                    st.session_state["welcomed"] = False
                     st.rerun()
                 else:
                     st.error("Invalid credentials")
@@ -90,6 +107,43 @@ if st.session_state["token"] is None:
     st.stop()
 
 
+elif not st.session_state.get("welcomed", False):
+    # Landing page shown once after each login
+    st.markdown(
+        """
+        <style>
+        .porch-title{font-family:'Bell MT','Bell MT Std',Baskerville,'Palatino Linotype',Georgia,serif;
+            color:#000080;text-align:center;font-size:2.8rem;font-weight:600;margin:1rem 0 .5rem;}
+        .porch-sub{text-align:center;color:#000080;font-style:italic;margin-bottom:1.5rem;}
+        .porch-card{background:rgba(137,207,240,.45);border:2px solid #000080;border-radius:10px;
+            padding:1.5rem 2rem;font-size:1.05rem;line-height:1.7;}
+        </style>
+        <div class="porch-title">The Blanchester Porch Exchange</div>
+        <div class="porch-sub">Neighbors helping neighbors</div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.markdown(f"### Welcome, {st.session_state['username']}")
+    st.markdown(
+        f"""
+        <div class="porch-card">
+        <h4>Statement of Purpose</h4>
+        <p>{MISSION_STATEMENT}</p>
+        <h4>How It Works</h4>
+        <ol>
+        <li><b>Share your skills.</b> List the talents and services you are able to offer your neighbors.</li>
+        <li><b>Post your needs.</b> Describe what you require and, if you wish, share it on the public Needs Board.</li>
+        <li><b>Connect.</b> Browse the board and review the suggested matches between needs and skills.</li>
+        </ol>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.write("")
+    if st.button("Continue to Dashboard", type="primary", use_container_width=True):
+        st.session_state["welcomed"] = True
+        st.rerun()
+
 else:
     with st.sidebar:
         # user displayed in sidebar
@@ -98,6 +152,7 @@ else:
         if st.button("Logout"):
             st.session_state["token"] = None
             st.session_state["username"] = None
+            st.session_state["welcomed"] = False
             st.rerun()
 
         # Backend / document index status
@@ -123,8 +178,17 @@ else:
     st.subheader(f"Welcome, {st.session_state['username']}")
 
     # Create tabs for different sections of the dashboard
-    overview, needs_tab, new_need_tab, skills_tab, ai_tab, docs_tab = st.tabs(
-        ["Overview", "Needs", "Add New Need", "Skills I Can Offer", "AI Assistant", "Community Documents"]
+    overview, needs_tab, new_need_tab, board_tab, matches_tab, skills_tab, ai_tab, docs_tab = st.tabs(
+        [
+            "Overview",
+            "Needs",
+            "Add New Need",
+            "Needs Board",
+            "My Matches",
+            "Skills I Can Offer",
+            "AI Assistant",
+            "Community Documents",
+        ]
     )
 
     # Fetch needs from the API using the authenticated token
@@ -194,6 +258,22 @@ else:
                         update_need_met(token, need_id, met)
                         st.rerun()
 
+                    is_public = bool(need.get("is_public", False))
+                    col_pub, col_info = st.columns([1, 3])
+                    shared = col_pub.toggle("On public board", value=is_public, key=f"pub_{need_id}")
+                    if shared != is_public:
+                        update_need_public(token, need_id, shared)
+                        st.rerun()
+                    if is_public and need.get("contact"):
+                        col_info.caption(f"Contact shown: {need['contact']}")
+                    with st.expander("Neighbors who can help"):
+                        helpers = get_need_matches(token, need_id)
+                        if isinstance(helpers, list) and helpers:
+                            for helper in helpers:
+                                st.write(f"**{helper['username']}** offers: {', '.join(helper['skills'])}")
+                        else:
+                            st.caption("No matching skills have been offered yet.")
+
         with new_need_tab:
             st.subheader("Add New Need")
             if st.session_state.pop("need_added", False):
@@ -201,19 +281,57 @@ else:
             with st.form("add_need_form", clear_on_submit=True):
                 title = st.text_input("Need Title")
                 description = st.text_area("Need Description")
+                share_public = st.checkbox("Share on the public Needs Board")
+                contact = st.text_input(
+                    "Contact info (shown on the board)", placeholder="Phone, email, or where to find you"
+                )
                 submitted = st.form_submit_button("Add Need")
                 if submitted:
                     if not title.strip():
                         st.error("Please enter a title for the need.")
                     else:
                         try:
-                            if create_need(token, title.strip(), description):
+                            if create_need(token, title.strip(), description, share_public, contact):
                                 st.session_state["need_added"] = True
                                 st.rerun()
                             else:
                                 st.error("Failed to add need.")
                         except Exception as error:
                             st.error(f"An error occurred while adding the need: {error}")
+
+        def render_board_need(item):
+            """Show one public need with its poster, contact and matched skills."""
+            with st.container(border=True):
+                st.markdown(f"**{item['title']}**  ·  priority: {item['priority']}")
+                if item.get("description"):
+                    st.write(item["description"])
+                who = "you" if item["is_mine"] else item["poster"]
+                st.caption(f"Posted by {who} on {str(item['created_at'])[:10]}")
+                if item.get("contact"):
+                    st.write(f"Contact: {item['contact']}")
+                if item.get("matched_skills"):
+                    st.success("Matches your skills: " + ", ".join(item["matched_skills"]))
+
+        with board_tab:
+            st.subheader("Public Needs Board")
+            st.caption("Open needs that neighbors have chosen to share. Reach out if you can help.")
+            search = st.text_input("Search the board", key="board_search")
+            board = get_board(token, search)
+            if isinstance(board, list) and board:
+                for item in board:
+                    render_board_need(item)
+            else:
+                st.info("No public needs match right now.")
+
+        with matches_tab:
+            st.subheader("Needs I Can Help With")
+            st.caption("Public needs that overlap with the skills you listed, best match first.")
+            my_matches = get_my_matches(token)
+            if isinstance(my_matches, list) and my_matches:
+                for item in my_matches:
+                    render_board_need(item)
+            else:
+                st.info("No matches yet. Add skills on the Skills tab to see needs you could help meet.")
 
         with skills_tab:
             st.subheader("Skills I Can Offer")

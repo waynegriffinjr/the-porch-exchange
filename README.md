@@ -18,7 +18,11 @@ Volumes: `app_data` (SQLite users/needs), `chroma_data` (vector DB), `ollama_dat
                                          |  ChromaDB <- backend/docs/*.txt|*.md
 ```
 
-Dashboard tabs: **Overview** (metrics, table, chart, Groq key link), **Needs** (with a "Need Met" checkbox), **Add New Need**, **Skills I Can Offer**, **AI Assistant** (Groq, optional key in sidebar), **Community Documents** (RAG chat with sources and confidence, re-index button). The sidebar shows API/Ollama status and the number of indexed chunks.
+After login a welcome page states the site's purpose, with a **Continue to Dashboard** button.
+
+Matching and the public board: a need can be shared on the board (`is_public`, with optional `contact` text). Matching is keyword-based (`backend/app/matching.py`): need title/description words are compared with skill names (weighted double) and details, ignoring stopwords and simple plurals. Emails are never exposed; only the username and the contact text the poster chose to share.
+
+Dashboard tabs: **Needs Board**, **My Matches**, **Overview** (metrics, table, chart, Groq key link), **Needs** (with a "Need Met" checkbox), **Add New Need**, **Skills I Can Offer**, **AI Assistant** (Groq, optional key in sidebar), **Community Documents** (RAG chat with sources and confidence, re-index button). The sidebar shows API/Ollama status and the number of indexed chunks.
 
 RAG pipeline: `/ingest` chunks each document (`CHUNK_SIZE`, `CHUNK_OVERLAP`) into ChromaDB; `/ask` retrieves the closest chunks, drops those beyond `CONFIDENCE_THRESHOLD`, and asks Ollama. **Guardrail:** with no sufficiently close chunk the LLM is not called and the answer is "I don't know" (`confidence: "none"`).
 
@@ -48,7 +52,7 @@ RAG pipeline: `/ingest` chunks each document (`CHUNK_SIZE`, `CHUNK_OVERLAP`) int
     │   ├── auth.py, database.py, exceptions.py
     │   ├── models/, schemas/  # users and needs
     │   └── routers/           # auth.py, needs.py, rag.py
-    ├── tests/                 # auth, needs/users, RAG (29 tests)
+    ├── tests/                 # auth, needs/users, RAG (35 tests)
     └── docs/                  # .txt / .md corpus (see Adding documents)
 ```
 
@@ -174,6 +178,9 @@ Interactive docs: http://localhost:8000/docs. 🔒 = requires `Authorization: Be
 | GET/PATCH/DELETE | `/needs/{id}` 🔒 | Read / update / delete your need                              |
 | POST   | `/needs/{id}/suggest` 🔒 | Suggested action for a need                                      |
 | GET    | `/stats` 🔒            | `{"document_count": N}` (indexed chunks)                           |
+| GET    | `/board/` 🔒           | Public needs board: open needs neighbors chose to share (`search`, `skip`, `limit`) |
+| GET    | `/board/matches` 🔒    | Public needs from others that fit your skills, best match first    |
+| GET    | `/needs/{id}/matches` 🔒 | Neighbors whose skills fit one of your needs                     |
 | POST   | `/ask` 🔒              | Body `{"question": "..."}`; returns `answer`, `sources`, `confidence` |
 | POST   | `/ask/stream` 🔒       | Same body as `/ask`; streams NDJSON events: `meta` (sources, confidence) then `token`s |
 | POST   | `/ingest` 🔒           | Re-chunk and re-load all `backend/docs/*.txt|*.md` files           |

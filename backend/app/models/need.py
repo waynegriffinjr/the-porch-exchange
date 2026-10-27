@@ -20,6 +20,8 @@ class Need(Base):
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     priority: Mapped[str] = mapped_column(String(20), default="medium", nullable=False)
+    is_public: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    contact: Mapped[str | None] = mapped_column(String(200), nullable=True)
     completed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now(UTC), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(

@@ -10,8 +10,11 @@ from sqlalchemy.orm import Session
 from app.auth import get_current_user
 from app.database import get_db
 from app.exceptions import NotFoundException
+from app.matching import score_match
 from app.models.need import Need
+from app.models.skill import Skill
 from app.models.user import User
+from app.schemas.board import SkillMatch
 from app.schemas.need import NeedCreate, NeedPatch, NeedResponse
 
 router = APIRouter()
@@ -55,6 +58,8 @@ def create_need(
         description=need.description,
         priority=need.priority,
         completed=need.completed,
+        is_public=need.is_public,
+        contact=need.contact,
         owner_id=current_user.id,  # Associate the need with the current user's ID
     )
 
@@ -157,3 +162,22 @@ def suggest_need_action(need_id: int, db: Session = Depends(get_db), current_use
     suggestion = f"Consider prioritizing this need: {need.title} becasue of the following logical analysis:..."
 
     return {"suggestion": suggestion}  # Return the suggestion as the response
+
+
+@router.get("/{need_id}/matches", response_model=list[SkillMatch], summary="Neighbors whose skills fit this need")
+def need_matches(need_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Find neighbors offering skills that overlap with one of your needs, best match first."""
+    need = db.query(Need).filter(Need.id == need_id).first()
+    if not need:
+        raise NotFoundException("Need not found")
+    if need.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You do not have permission to access this need")
+
+    by_user: dict[str, SkillMatch] = {}
+    for skill, owner in db.query(Skill, User).join(User, User.id == Skill.owner_id).filter(User.id != current_user.id):
+        score = score_match(need.title, need.description, skill.name, skill.description)
+        if score > 0:
+            match = by_user.setdefault(owner.username, SkillMatch(username=owner.username, skills=[], score=0))
+            match.skills.append(skill.name)
+            match.score += score
+    return sorted(by_user.values(), key=lambda m: m.score, reverse=True)

@@ -25,6 +25,13 @@ class NeedCreate(BaseModel):
         default="medium", description="Need priority level", examples=["high"]
     )
     completed: bool = False
+    is_public: bool = Field(default=False, description="Share this need on the public board")
+    contact: str | None = Field(
+        default=None,
+        max_length=200,
+        description="How neighbors can reach you (shown only on the public board)",
+        examples=["Text 555-0100 or porch at 12 Main St"],
+    )
 
 
 class NeedPatch(BaseModel):
@@ -34,6 +41,8 @@ class NeedPatch(BaseModel):
     description: str | None = Field(default=None, max_length=2000)
     completed: bool | None = None
     priority: Literal["low", "medium", "high", "critical"] | None = None
+    is_public: bool | None = None
+    contact: str | None = Field(default=None, max_length=200)
 
 
 class NeedDelete(BaseModel):
@@ -50,6 +59,8 @@ class NeedResponse(BaseModel):
     description: str | None
     priority: str
     completed: bool
+    is_public: bool
+    contact: str | None
     created_at: datetime
     updated_at: datetime
 
@@ -62,6 +73,8 @@ class NeedResponse(BaseModel):
                 "description": "Cover auth module with pytest",
                 "priority": "high",
                 "completed": False,
+                "is_public": True,
+                "contact": "Text 555-0100",
                 "created_at": "2026-02-24T10:30:00",
                 "updated_at": "2026-02-24T10:30:00",
             }
