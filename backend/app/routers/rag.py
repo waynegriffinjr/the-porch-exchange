@@ -29,7 +29,7 @@ def get_collection():
     return client.get_or_create_collection(settings.COLLECTION_NAME, metadata={"hnsw:space": "cosine"})
 
 
-@router.get("/health", tags=["health"])
+@router.get("/health", tags=["Health"])
 def health():
     """Report backend status, Ollama connectivity, and chunk count."""
     try:
@@ -49,20 +49,20 @@ def health():
     }
 
 
-@router.post("/ingest")
+@router.post("/ingest", tags=["Documents"])
 def ingest(_: User = Depends(get_current_user)):
     """Re-index all documents (idempotent)."""
     collection = get_collection()
     return {"ingested": rag.ingest_docs(collection), "documents": collection.count()}
 
 
-@router.get("/stats")
+@router.get("/stats", tags=["Documents"])
 def stats(_: User = Depends(get_current_user)):
     """Return the number of indexed chunks."""
     return {"document_count": get_collection().count()}
 
 
-@router.post("/ask")
+@router.post("/ask", tags=["Documents"])
 def ask(req: AskRequest, _: User = Depends(get_current_user)):
     """Answer a question from the indexed community documents."""
     try:
@@ -71,7 +71,7 @@ def ask(req: AskRequest, _: User = Depends(get_current_user)):
         raise HTTPException(status_code=502, detail=f"Ollama error: {e}") from e
 
 
-@router.post("/ask/stream")
+@router.post("/ask/stream", tags=["Documents"])
 def ask_stream(req: AskRequest, _: User = Depends(get_current_user)):
     """Stream an answer as NDJSON events (meta, token..., optional error)."""
     return StreamingResponse(

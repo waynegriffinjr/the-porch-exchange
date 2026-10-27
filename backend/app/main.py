@@ -32,14 +32,13 @@ from app.routers import rag as rag_router
 tags_metadata = [
     {
         "name": "Authentication",
-        "description": "User registration and login. All protected endpoints require a Bearer token.",
+        "description": "Register, log in, and view your profile. Protected endpoints require a Bearer token.",
     },
-    {
-        "name": "Documents",
-        "description": "Ask questions about indexed community documents (RAG). Requires authentication.",
-    },
-    {"name": "board", "description": "Public needs board and skill matching. Requires authentication."},
-    {"name": "Needs", "description": "CRUD operations for needs. Most endpoints require authentication."},
+    {"name": "Needs", "description": "Create and manage your own needs."},
+    {"name": "Needs Board", "description": "Public needs board and skill matching."},
+    {"name": "Skills", "description": "Skills you can offer your neighbors."},
+    {"name": "Documents", "description": "Ask questions about indexed community documents (RAG)."},
+    {"name": "Health", "description": "Service status."},
 ]
 
 logger = logging.getLogger(__name__)
@@ -58,7 +57,7 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(
     lifespan=lifespan,
-    title="Needs Manager Dashboard API",
+    title="Community Needs Dashboard API",
     description="""
     A needs management API with JWT authentication, Pydantic validation,
     SQLAlchemy persistence, and a RAG question-answering endpoint over
@@ -96,21 +95,21 @@ add_board_columns()
 Base.metadata.create_all(bind=engine)
 
 
-app.include_router(auth.router, prefix="/auth", tags=["auth"])
-app.include_router(auth.users_router, prefix="/users", tags=["users"])
+app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
+app.include_router(auth.users_router, prefix="/users", tags=["Authentication"])
 
-app.include_router(needs.router, prefix="/needs", tags=["needs"])
-app.include_router(board.router, prefix="/board", tags=["board"])
-app.include_router(skills.router, prefix="/skills", tags=["skills"])
-app.include_router(rag_router.router, tags=["Documents"])
+app.include_router(needs.router, prefix="/needs", tags=["Needs"])
+app.include_router(board.router, prefix="/board", tags=["Needs Board"])
+app.include_router(skills.router, prefix="/skills", tags=["Skills"])
+app.include_router(rag_router.router)
 
 
-@app.get("/", tags=["health"])
+@app.get("/", tags=["Health"])
 def health_check():
     """Health check endpoint."""
     return {
         "status": "ok",
-        "message": "Needs Manager API is running",
+        "message": "Community Needs Dashboard API is running",
         "model": settings.MODEL_NAME,
     }
 
