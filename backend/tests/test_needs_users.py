@@ -1,22 +1,22 @@
 from fastapi.testclient import TestClient
 
 
-def test_unauthenticated_task_request_returns_401(client: TestClient):
-    # Protected task routes should reject requests without a JWT.
-    response = client.get("/tasks/")
+def test_unauthenticated_need_request_returns_401(client: TestClient):
+    # Protected need routes should reject requests without a JWT.
+    response = client.get("/needs/")
 
     # 401 means the request is missing valid authentication credentials.
     assert response.status_code == 401
 
 
-def test_authenticated_user_can_create_a_task(client: TestClient, auth_headers):
-    # Send a valid task request with the Bearer token from the auth_headers fixture.
+def test_authenticated_user_can_create_a_need(client: TestClient, auth_headers):
+    # Send a valid need request with the Bearer token from the auth_headers fixture.
     response = client.post(
-        "/tasks/",
+        "/needs/",
         headers=auth_headers,
         json={
             "title": "Write tests",
-            "description": "Cover the task endpoints",
+            "description": "Cover the need endpoints",
             "priority": "high",
             "completed": False,
         },
@@ -31,58 +31,58 @@ def test_authenticated_user_can_create_a_task(client: TestClient, auth_headers):
     assert body["completed"] is False
 
 
-def test_authenticated_user_can_list_only_their_tasks(
+def test_authenticated_user_can_list_only_their_needs(
     client: TestClient,
     auth_headers,
 ):
-    # Create one task, then request the authenticated user's task collection.
+    # Create one need, then request the authenticated user's need collection.
     create_response = client.post(
-        "/tasks/",
+        "/needs/",
         headers=auth_headers,
-        json={"title": "User one task"},
+        json={"title": "User one need"},
     )
     assert create_response.status_code == 201
 
-    list_response = client.get("/tasks/", headers=auth_headers)
+    list_response = client.get("/needs/", headers=auth_headers)
 
-    # The list endpoint should return only this user's task.
+    # The list endpoint should return only this user's need.
     assert list_response.status_code == 200
-    tasks = list_response.json()
-    assert len(tasks) == 1
-    assert tasks[0]["title"] == "User one task"
+    needs = list_response.json()
+    assert len(needs) == 1
+    assert needs[0]["title"] == "User one need"
 
 
-def test_authenticated_user_can_retrieve_a_task(
+def test_authenticated_user_can_retrieve_a_need(
     client: TestClient,
     auth_headers,
 ):
-    # Create a task first so the test has a real database ID to retrieve.
+    # Create a need first so the test has a real database ID to retrieve.
     create_response = client.post(
-        "/tasks/",
+        "/needs/",
         headers=auth_headers,
-        json={"title": "Retrieve this task"},
+        json={"title": "Retrieve this need"},
     )
-    task_id = create_response.json()["id"]
+    need_id = create_response.json()["id"]
 
-    # Fetch the task by ID using the same user's authentication header.
-    response = client.get(f"/tasks/{task_id}", headers=auth_headers)
+    # Fetch the need by ID using the same user's authentication header.
+    response = client.get(f"/needs/{need_id}", headers=auth_headers)
 
-    # Confirm both the status and the identity of the returned task.
+    # Confirm both the status and the identity of the returned need.
     assert response.status_code == 200
-    assert response.json()["id"] == task_id
-    assert response.json()["title"] == "Retrieve this task"
+    assert response.json()["id"] == need_id
+    assert response.json()["title"] == "Retrieve this need"
 
 
-def test_missing_task_returns_404(client: TestClient, auth_headers):
+def test_missing_need_returns_404(client: TestClient, auth_headers):
     # 99999 should not exist in the fresh test database.
-    response = client.get("/tasks/99999", headers=auth_headers)
+    response = client.get("/needs/99999", headers=auth_headers)
 
-    # The API should report a missing task instead of returning a server error.
+    # The API should report a missing need instead of returning a server error.
     assert response.status_code == 404
-    assert response.json()["detail"] == "Task not found"
+    assert response.json()["detail"] == "Need not found"
 
 
-def test_user_cannot_access_another_users_task(client: TestClient):
+def test_user_cannot_access_another_users_need(client: TestClient):
     first_user = client.post(
         "/auth/register",
         json={"username": "alice", "email": "alice@example.com", "password": "password123"},
@@ -104,40 +104,40 @@ def test_user_cannot_access_another_users_task(client: TestClient):
     ).json()["access_token"]
 
     created = client.post(
-        "/tasks/",
+        "/needs/",
         headers={"Authorization": f"Bearer {first_token}"},
-        json={"title": "Alice's private task"},
+        json={"title": "Alice's private need"},
     )
     assert created.status_code == 201
 
     response = client.get(
-        f"/tasks/{created.json()['id']}",
+        f"/needs/{created.json()['id']}",
         headers={"Authorization": f"Bearer {second_token}"},
     )
 
     assert response.status_code == 403
-    assert response.json()["detail"] == "You do not have permission to access this task"
+    assert response.json()["detail"] == "You do not have permission to access this need"
 
 
-def test_tasks_can_be_filtered_and_paginated(client: TestClient, auth_headers):
-    client.post("/tasks/", headers=auth_headers, json={"title": "Open", "priority": "high"})
-    client.post("/tasks/", headers=auth_headers, json={"title": "Done", "priority": "high", "completed": True})
+def test_needs_can_be_filtered_and_paginated(client: TestClient, auth_headers):
+    client.post("/needs/", headers=auth_headers, json={"title": "Open", "priority": "high"})
+    client.post("/needs/", headers=auth_headers, json={"title": "Done", "priority": "high", "completed": True})
 
-    response = client.get("/tasks/?completed=true&priority=high&limit=1", headers=auth_headers)
+    response = client.get("/needs/?completed=true&priority=high&limit=1", headers=auth_headers)
 
     assert response.status_code == 200
-    assert [task["title"] for task in response.json()] == ["Done"]
+    assert [need["title"] for need in response.json()] == ["Done"]
 
 
 def test_partial_update_preserves_omitted_fields(client: TestClient, auth_headers):
     created = client.post(
-        "/tasks/",
+        "/needs/",
         headers=auth_headers,
         json={"title": "Keep complete", "completed": True, "priority": "high"},
     ).json()
 
     response = client.patch(
-        f"/tasks/{created['id']}",
+        f"/needs/{created['id']}",
         headers=auth_headers,
         json={"title": "Renamed"},
     )
@@ -153,8 +153,8 @@ def test_profile_and_suggestion_routes_work(client: TestClient, auth_headers):
     assert profile.status_code == 200
     assert "hashed_password" not in profile.json()
 
-    created = client.post("/tasks/", headers=auth_headers, json={"title": "Suggest this"}).json()
-    suggestion = client.post(f"/tasks/{created['id']}/suggest", headers=auth_headers)
+    created = client.post("/needs/", headers=auth_headers, json={"title": "Suggest this"}).json()
+    suggestion = client.post(f"/needs/{created['id']}/suggest", headers=auth_headers)
     assert suggestion.status_code == 200
     assert "suggestion" in suggestion.json()
 

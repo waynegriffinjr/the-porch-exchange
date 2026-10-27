@@ -1,5 +1,5 @@
-# /app/models/task.py
-# Module 5 Project — Task model
+# /app/models/need.py
+# Module 5 Project — Need model
 #
 
 from datetime import UTC, datetime
@@ -11,10 +11,10 @@ from app.database import Base
 from app.models.user import User
 
 
-class Task(Base):
+class Need(Base):
     """A community need owned by a user."""
 
-    __tablename__ = "tasks"
+    __tablename__ = "needs"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     title: Mapped[str] = mapped_column(String(200), nullable=False)
@@ -28,5 +28,5 @@ class Task(Base):
 
     owner_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
 
-    owner: Mapped["User"] = relationship("User", back_populates="tasks")
-    # The owner attribute establishes a many-to-one relationship with the User model. It allows you to access the user who owns the task. The back_populates parameter indicates that the User model has a corresponding tasks attribute that refers back to the Task model.
+    owner: Mapped["User"] = relationship("User", back_populates="needs")
+    # The owner attribute establishes a many-to-one relationship with the User model. It allows you to access the user who owns the need. The back_populates parameter indicates that the User model has a corresponding needs attribute that refers back to the Need model.

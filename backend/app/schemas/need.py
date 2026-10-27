@@ -1,4 +1,4 @@
-# app/schemas/task.py
+# app/schemas/need.py
 
 from datetime import datetime
 from typing import Literal
@@ -6,13 +6,13 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class TaskCreate(BaseModel):
-    """Input for creating a task."""
+class NeedCreate(BaseModel):
+    """Input for creating a need."""
 
     title: str = Field(
         min_length=1,
         max_length=200,
-        description="The name of the task",
+        description="The name of the need",
         examples=["Write unit tests for the auth module"],
     )
     description: str | None = Field(
@@ -22,13 +22,13 @@ class TaskCreate(BaseModel):
         examples=["Cover register, login, and token validation with pytest"],
     )
     priority: Literal["low", "medium", "high", "critical"] = Field(
-        default="medium", description="Task priority level", examples=["high"]
+        default="medium", description="Need priority level", examples=["high"]
     )
     completed: bool = False
 
 
-class TaskPatch(BaseModel):
-    """Input for partial task update."""
+class NeedPatch(BaseModel):
+    """Input for partial need update."""
 
     title: str | None = Field(default=None, min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=2000)
@@ -36,13 +36,13 @@ class TaskPatch(BaseModel):
     priority: Literal["low", "medium", "high", "critical"] | None = None
 
 
-class TaskDelete(BaseModel):
-    """Input for deleting a task."""
+class NeedDelete(BaseModel):
+    """Input for deleting a need."""
 
-    id: int = Field(description="The ID of the task to delete", examples=[1])
+    id: int = Field(description="The ID of the need to delete", examples=[1])
 
 
-class TaskResponse(BaseModel):
+class NeedResponse(BaseModel):
     """Returned to clients."""
 
     id: int

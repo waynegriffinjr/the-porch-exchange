@@ -17,7 +17,7 @@ from app.database import Base, get_db
 from app.main import app
 
 TEST_DATABASE_URL = "sqlite:///./test.db"  # Use a separate test database
-# Tests use their own database so they do not modify taskmanager.db.
+# Tests use their own database so they do not modify needs.db.
 engine = create_engine(TEST_DATABASE_URL, connect_args={"check_same_thread": False})
 TestingSession = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

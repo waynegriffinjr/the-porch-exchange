@@ -11,7 +11,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 
 if TYPE_CHECKING:
-    from app.models.task import Task
+    from app.models.need import Need
 
 
 class User(Base):
@@ -27,5 +27,5 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now(UTC), nullable=False)
 
-    tasks: Mapped[list["Task"]] = relationship("Task", back_populates="owner")
-    # The tasks attribute establishes a one-to-many relationship with the Task model. It allows you to access all tasks associated with a user. The back_populates parameter indicates that the Task model has a corresponding owner attribute that refers back to the User model.
+    needs: Mapped[list["Need"]] = relationship("Need", back_populates="owner")
+    # The needs attribute establishes a one-to-many relationship with the Need model. It allows you to access all needs associated with a user. The back_populates parameter indicates that the Need model has a corresponding owner attribute that refers back to the User model.

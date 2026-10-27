@@ -1,20 +1,20 @@
 # Needs Manager Dashboard
 
-A full-stack needs/task manager with a built-in community document assistant. The **Needs Manager Dashboard** (FastAPI backend + Streamlit app: JWT login, task management, analytics, Groq AI assistant) is the primary application. The Containerized RAG features (ChromaDB + Ollama question answering over the Blanchester community documents) are integrated into it, so one backend and one frontend serve everything.
+A full-stack needs/need manager with a built-in community document assistant. The **Needs Manager Dashboard** (FastAPI backend + Streamlit app: JWT login, need management, analytics, Groq AI assistant) is the primary application. The Containerized RAG features (ChromaDB + Ollama question answering over the Blanchester community documents) are integrated into it, so one backend and one frontend serve everything.
 
 ## Architecture
 
 | Service   | Image / Build           | Port  | Purpose                                                        |
 |-----------|-------------------------|-------|----------------------------------------------------------------|
-| `backend` | built from `./backend`  | 8000  | FastAPI: auth, tasks (SQLite), document RAG (ChromaDB)         |
+| `backend` | built from `./backend`  | 8000  | FastAPI: auth, needs (SQLite), document RAG (ChromaDB)         |
 | `frontend`| built from `./frontend` | 8501  | Streamlit dashboard (talks to `backend`)                       |
 | `ollama`  | `ollama/ollama`         | 11434 | Local LLM server used by the document assistant                |
 
-Volumes: `app_data` (SQLite users/tasks), `chroma_data` (vector DB), `ollama_data` (models).
+Volumes: `app_data` (SQLite users/needs), `chroma_data` (vector DB), `ollama_data` (models).
 
 ```
  Streamlit dashboard (:8501) --HTTP--> FastAPI backend (:8000) --HTTP--> Ollama (:11434)
-                                         |  SQLite (users, tasks)
+                                         |  SQLite (users, needs)
                                          |  ChromaDB <- backend/docs/*.txt|*.md
 ```
 
@@ -46,9 +46,9 @@ RAG pipeline: `/ingest` chunks each document (`CHUNK_SIZE`, `CHUNK_OVERLAP`) int
     │   ├── config.py          # RAG settings (env vars)
     │   ├── rag.py             # chunking, ingestion, retrieval, generation
     │   ├── auth.py, database.py, exceptions.py
-    │   ├── models/, schemas/  # users and tasks
-    │   └── routers/           # auth.py, tasks.py, rag.py
-    ├── tests/                 # auth, tasks/users, RAG (29 tests)
+    │   ├── models/, schemas/  # users and needs
+    │   └── routers/           # auth.py, needs.py, rag.py
+    ├── tests/                 # auth, needs/users, RAG (29 tests)
     └── docs/                  # .txt / .md corpus (see Adding documents)
 ```
 
@@ -135,7 +135,7 @@ cp .env.example .env    # then edit .env with your own values
 | Variable               | Default (in `config.py`) | Description                                   |
 |------------------------|--------------------------|-----------------------------------------------|
 | `SECRET_KEY`           | *(required)*             | Signs login JWTs; backend refuses to start without it |
-| `DATABASE_URL`         | `sqlite:///./taskmanager.db` | Users/tasks database (set to a volume path in Compose) |
+| `DATABASE_URL`         | `sqlite:///./needs.db` | Users/needs database (set to a volume path in Compose) |
 | `INGEST_ON_STARTUP`    | `true`                   | Index `DOCS_DIRECTORY` when the backend starts |
 | `OLLAMA_URL`           | `http://localhost:11434` | Ollama server URL (`http://ollama:11434` in Compose) |
 | `MODEL_NAME`           | `llama3.2:1b`            | Ollama model name                             |
@@ -170,9 +170,9 @@ Interactive docs: http://localhost:8000/docs. 🔒 = requires `Authorization: Be
 | POST   | `/auth/login`          | Form login (`username`, `password`), returns a token               |
 | GET    | `/users/me` 🔒         | Current user                                                       |
 | GET/POST/DELETE | `/skills/` 🔒 | List / add / remove the skills you can offer |
-| GET/POST | `/tasks/` 🔒         | List (filters: `completed`, `priority`, `skip`, `limit`) / create tasks |
-| GET/PATCH/DELETE | `/tasks/{id}` 🔒 | Read / update / delete your task                              |
-| POST   | `/tasks/{id}/suggest` 🔒 | Suggested action for a task                                      |
+| GET/POST | `/needs/` 🔒         | List (filters: `completed`, `priority`, `skip`, `limit`) / create needs |
+| GET/PATCH/DELETE | `/needs/{id}` 🔒 | Read / update / delete your need                              |
+| POST   | `/needs/{id}/suggest` 🔒 | Suggested action for a need                                      |
 | GET    | `/stats` 🔒            | `{"document_count": N}` (indexed chunks)                           |
 | POST   | `/ask` 🔒              | Body `{"question": "..."}`; returns `answer`, `sources`, `confidence` |
 | POST   | `/ask/stream` 🔒       | Same body as `/ask`; streams NDJSON events: `meta` (sources, confidence) then `token`s |

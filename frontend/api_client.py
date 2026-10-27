@@ -27,7 +27,7 @@ def get_needs(token: str):
     """Fetch all needs for the authenticated user."""
     try:
         response = requests.get(
-            f"{API_URL}/tasks/",
+            f"{API_URL}/needs/",
             headers={"Authorization": f"Bearer {token}"},
             timeout=10,
         )
@@ -44,7 +44,7 @@ def create_need(token: str, title: str, description: str = ""):
     """Create a new need."""
     try:
         response = requests.post(
-            f"{API_URL}/tasks/",
+            f"{API_URL}/needs/",
             headers={"Authorization": f"Bearer {token}"},
             json={"title": title, "description": description},
             timeout=10,
@@ -59,7 +59,7 @@ def update_need_met(token: str, need_id: int, completed: bool):
     """Mark a need as met or not met."""
     try:
         response = requests.patch(
-            f"{API_URL}/tasks/{need_id}",
+            f"{API_URL}/needs/{need_id}",
             headers={"Authorization": f"Bearer {token}"},
             json={"completed": completed},
             timeout=10,
